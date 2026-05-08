@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: inbox_postgres
+    restart: unless-stopped
+    env_file:
+      - .env.docker
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U inbox -d inbox"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: inbox_app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env.docker
+    command: >
+      sh -c "npm run prisma:generate &&
+      npx prisma db push &&
+      npm run start -- -H 0.0.0.0 -p 3000"
+    ports:
+      - "3002:3000"
+
+volumes:
+  postgres_data:
